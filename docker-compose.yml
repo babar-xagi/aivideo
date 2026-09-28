@@ -1,0 +1,35 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  storage:
+    image: chrislusf/seaweedfs:4.44
+    command:
+      - server
+      - -s3
+      - -dir=/data
+      - -s3.config=/etc/seaweedfs/s3.json
+      - -master.volumeSizeLimitMB=64
+    ports:
+      - "127.0.0.1:8333:8333"
+    volumes:
+      - storage_data:/data
+      - ./storage/s3.json:/etc/seaweedfs/s3.json:ro
+
+volumes:
+  postgres_data:
+  storage_data:
+

@@ -1,0 +1,3 @@
+# AI pipeline
+
+`ai.speech.transcribe` extracts audio with FFmpeg and transcribes English speech into timestamped segments and words with faster-whisper. `ai.speech.metrics` calculates recognized word count, speaking pace, pauses, hesitation words, and immediate repetitions from those word timestamps. A pause is a gap of at least 0.5 seconds between recognized words; a long pause is at least 2 seconds. Pace uses the span from the first recognized word to the last, including internal pauses. Only unambiguous hesitation words (`um`, `uh`, `erm`, `hmm`) are counted; context dependent words such as `like` are excluded. Recognition or alignment errors can change the measures. `ai.mock` still creates clearly labeled general coaching suggestions independently of FastAPI.
