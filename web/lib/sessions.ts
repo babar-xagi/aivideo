@@ -66,6 +66,40 @@ export type SpeechMetrics = {
   repetitions: Array<{ word: string; start: number }>;
 };
 
+export type LanguageAnalysis = {
+  summary: string;
+  strengths: string[];
+  major_improvements: string[];
+  grammar_issues: Array<{
+    timestamp_start: number;
+    timestamp_end: number;
+    original: string;
+    suggestion: string;
+    explanation: string;
+    category: string;
+    severity: "low" | "medium" | "high";
+  }>;
+  clarity_suggestions: Array<{
+    timestamp_start: number;
+    timestamp_end: number;
+    original: string;
+    suggestion: string;
+    explanation: string;
+  }>;
+  vocabulary_suggestions: Array<{
+    timestamp_start: number;
+    timestamp_end: number;
+    original: string;
+    alternative: string;
+    explanation: string;
+  }>;
+  practice_exercise: string;
+};
+
+export type LanguageFeedback =
+  | { status: "available"; model: string; analysis: LanguageAnalysis }
+  | { status: "unavailable"; reason: "not_configured" | "no_speech" | "provider_error" };
+
 export type AnalysisStatus =
   | "queued"
   | "transcribing"
@@ -85,6 +119,7 @@ export type AnalysisJob = {
   report: MockReport | null;
   transcript: Transcript | null;
   metrics: SpeechMetrics | null;
+  language_feedback: LanguageFeedback | null;
   error_message: string | null;
 };
 

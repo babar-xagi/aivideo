@@ -13,7 +13,7 @@ export function MockReport({ report }: { report: MockReportType }) {
         {report.practice_suggestions.map((suggestion) => <li key={suggestion}>{suggestion}</li>)}
       </ul>
       <p className="mt-6 text-sm text-slate-500">
-        {report.transcription_available ? "Measured feedback will be added in later milestones." : "Transcription and measured feedback will be added in later milestones."}
+        {report.transcription_available ? "Speech metrics and language feedback appear separately above when available. These presentation ideas remain general examples." : "Transcription and measured feedback will be added in later milestones."}
       </p>
     </section>
   );

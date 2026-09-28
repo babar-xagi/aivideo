@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     whisper_compute_type: str = "int8"
     whisper_cpu_threads: int = 4
     whisper_model_cache: str | None = None
+    openai_api_key: str | None = None
+    openai_model: str = "gpt-4o-mini"
 
 
 @lru_cache

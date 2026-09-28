@@ -1,13 +1,13 @@
 # English Coach
 
-An AI-powered English speaking coach. This repository implements **Milestones 1–8** from [project.md](project.md): foundation, authentication, practice sessions, browser recording, private signed uploads, a persistent analysis worker, real timestamped English transcription, and measured fluency. English and presentation coaching suggestions are still sample output.
+An AI-powered English speaking coach. This repository implements **Milestones 1–9** from [project.md](project.md): foundation, authentication, practice sessions, browser recording, private signed uploads, a persistent analysis worker, timestamped English transcription, measured fluency, and structured language coaching. Presentation coaching suggestions are still sample output.
 
 ## Structure
 
 - `web/` — Next.js App Router frontend with TypeScript and Tailwind CSS
 - `backend/` — FastAPI, PostgreSQL models and migrations, Supabase token verification, and the analysis job queue
 - `worker/` — separate process that advances persisted analysis jobs
-- `ai/` — independent FFmpeg/faster-whisper transcription, deterministic speech metrics, and mock coaching generator
+- `ai/` — independent FFmpeg/faster-whisper transcription, deterministic speech metrics, an LLM language coach interface and OpenAI adapter, and a mock presentation coaching generator
 - `supabase/` — local Supabase Auth configuration
 - `docker-compose.yml` — application PostgreSQL and private S3-compatible storage for local development
 
@@ -57,9 +57,11 @@ cd /mnt/d/aivideo
 PYTHONPATH=.:backend uv run --project backend --env-file .env python -m worker.worker
 ```
 
-Open <http://localhost:3000>, create an account at `/auth/sign-up`, and verify the dashboard shows **Identity verified by the API**. Choose **Start practice**, select a style, enter a topic, and create a session. Record and preview a clip, then choose **Save recording**. The browser uploads directly to the private object store using a five-minute signed URL. The API verifies the stored file before marking the session uploaded. Then choose **Transcribe recording**. The worker downloads the private object to a temporary directory, extracts audio with FFmpeg, transcribes English speech with faster-whisper, and saves timestamped segments and words. It calculates speaking pace, pauses, hesitation words, and immediate repetitions. The worker removes its temporary files when finished. The page refreshes while the worker runs. English and presentation coaching suggestions remain clearly labeled sample guidance. Existing completed sessions can use **Measure saved recording** to add the metrics. If the worker is stopped, the job remains queued and resumes when it starts. Sign out, then revisit `/dashboard` or `/sessions/new`: they should redirect to sign-in. `GET http://localhost:8000/health` returns `{"status":"ok","database":"connected"}` while the database is healthy.
+Open <http://localhost:3000>, create an account at `/auth/sign-up`, and verify the dashboard shows **Identity verified by the API**. Choose **Start practice**, select a style, enter a topic, and create a session. Record and preview a clip, then choose **Save recording**. The browser uploads directly to the private object store using a five-minute signed URL. The API verifies the stored file before marking the session uploaded. Then choose **Transcribe recording**. The worker downloads the private object to a temporary directory, extracts audio with FFmpeg, transcribes English speech with faster-whisper, and saves timestamped segments and words. It calculates speaking pace, pauses, hesitation words, and immediate repetitions. With an OpenAI key configured, it also sends transcript text, timestamps, topic, and speech metrics to the language coach for structured grammar, clarity, and vocabulary feedback. The audio and video are not sent to that provider. The worker removes its temporary files when finished. The page refreshes while the worker runs. Presentation coaching suggestions remain labeled sample guidance. Existing completed sessions can use **Measure saved recording** or **Analyze saved transcript** to add newer results. If the worker is stopped, the job remains queued and resumes when it starts. Sign out, then revisit `/dashboard` or `/sessions/new`: they should redirect to sign-in. `GET http://localhost:8000/health` returns `{"status":"ok","database":"connected"}` while the database is healthy.
 
 The worker uses `tiny.en` on CPU with 8-bit computation by default. Its model downloads on first use to the ignored `.cache/models` directory; this may take a few minutes. Set `WHISPER_MODEL`, `WHISPER_DEVICE`, `WHISPER_COMPUTE_TYPE`, `WHISPER_CPU_THREADS`, or `WHISPER_MODEL_CACHE` in the root `.env` to change it, then restart the worker. A larger model may improve recognition but needs more memory and processing time. Transcription may still make mistakes, especially with noise, overlapping voices, or unclear audio.
+
+For live language feedback, add `OPENAI_API_KEY` to the ignored root `.env` and restart the worker. `OPENAI_MODEL` defaults to `gpt-4o-mini`, which supports structured outputs. The worker sends only transcript text, segment timestamps, topic, practice type, and speech metrics to the OpenAI Responses API with `store: false`; the key never goes to the browser. Provider failures, refusals, or invalid output leave the transcript, metrics, and sample presentation report available, with language feedback marked unavailable. Without a key, this panel shows that language coaching is not configured. Adding a key later lets you retry saved sessions from their existing transcript. Language suggestions may still be mistaken, especially when transcription is wrong.
 
 Session APIs require a valid Supabase bearer token: `POST /api/sessions`, `GET /api/sessions`, `GET /api/sessions/{id}`, `DELETE /api/sessions/{id}`, `POST /api/sessions/{id}/upload-url`, `POST /api/sessions/{id}/complete-upload`, `GET /api/sessions/{id}/recording-url`, `POST /api/sessions/{id}/analysis`, and `GET /api/sessions/{id}/analysis`. Every operation is scoped to the owner. Uploads accept WebM or MP4 up to 500 MB and a reported duration up to 10 minutes. Deleting a session also deletes its stored recording and job. Run `uv run --env-file ../.env alembic upgrade head` after future database updates.
 
@@ -110,7 +112,7 @@ bunx tsc --noEmit
 bun run build
 ```
 
-The backend tests cover tokens, session validation, owner isolation, signed upload completion, job stages, retry, transcript and metric persistence, sample report output, and deletion. AI tests cover invalid media, timestamp mapping, and deterministic fluency calculations. Recorder tests simulate camera and microphone devices, signed upload, retry, and device cleanup without physical hardware. The storage checks exercise the real local S3 service, CORS, unsigned read denial, PostgreSQL session lifecycle, and deletion. The transcription checks use [OpenAI Whisper's JFK test clip](https://github.com/openai/whisper/blob/main/tests/jfk.flac) to verify real English speech and word timestamps, including the full private upload and worker path. The full worker check requires the worker to be running.
+The backend tests cover tokens, session validation, owner isolation, signed upload completion, job stages, retry, transcript, metric and language feedback persistence, fallback output, and deletion. AI tests cover invalid media, timestamp mapping, deterministic fluency calculations, valid structured language output, and malformed or ungrounded provider responses. Recorder tests simulate camera and microphone devices, signed upload, retry, and device cleanup without physical hardware. The storage checks exercise the real local S3 service, CORS, unsigned read denial, PostgreSQL session lifecycle, and deletion. The transcription checks use [OpenAI Whisper's JFK test clip](https://github.com/openai/whisper/blob/main/tests/jfk.flac) to verify real English speech and word timestamps, including the full private upload and worker path. The full worker check requires the worker to be running.
 
 ## Configuration
 
@@ -126,9 +128,11 @@ The backend tests cover tokens, session validation, owner isolation, signed uplo
 | `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | FastAPI | Server-side storage credentials |
 | `WHISPER_MODEL`, `WHISPER_DEVICE`, `WHISPER_COMPUTE_TYPE`, `WHISPER_CPU_THREADS` | Worker | Speech model and inference settings |
 | `WHISPER_MODEL_CACHE` | Worker | Optional model cache path; defaults to ignored `.cache/models` |
+| `OPENAI_API_KEY` | Worker | Optional server-side key for live language coaching |
+| `OPENAI_MODEL` | Worker | Structured-output model; defaults to `gpt-4o-mini` |
 
 If you change `POSTGRES_PORT`, update the port in `DATABASE_URL` too. Changing the database password after its volume has been initialized requires updating or recreating that volume.
 
 ## Next milestone
 
-Milestone 9 adds English grammar and vocabulary analysis from the transcript.
+Milestone 10 builds the full report UI with a video timeline and linked transcript moments.

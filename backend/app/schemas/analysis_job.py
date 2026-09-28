@@ -1,8 +1,8 @@
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class MockReport(BaseModel):
@@ -62,6 +62,59 @@ class SpeechMetrics(BaseModel):
     repetitions: list[TimedWord]
 
 
+class GrammarIssueRead(BaseModel):
+    timestamp_start: float
+    timestamp_end: float
+    original: str
+    suggestion: str
+    explanation: str
+    category: Literal["verb_tense", "word_order", "agreement", "article", "other"]
+    severity: Literal["low", "medium", "high"]
+
+
+class ClaritySuggestionRead(BaseModel):
+    timestamp_start: float
+    timestamp_end: float
+    original: str
+    suggestion: str
+    explanation: str
+
+
+class VocabularySuggestionRead(BaseModel):
+    timestamp_start: float
+    timestamp_end: float
+    original: str
+    alternative: str
+    explanation: str
+
+
+class LanguageAnalysisRead(BaseModel):
+    summary: str
+    strengths: list[str]
+    major_improvements: list[str]
+    grammar_issues: list[GrammarIssueRead]
+    clarity_suggestions: list[ClaritySuggestionRead]
+    vocabulary_suggestions: list[VocabularySuggestionRead]
+    practice_exercise: str
+
+
+class AvailableLanguageFeedback(BaseModel):
+    status: Literal["available"]
+    model: str
+    analysis: LanguageAnalysisRead
+
+
+class UnavailableLanguageFeedback(BaseModel):
+    status: Literal["unavailable"]
+    reason: Literal["not_configured", "no_speech", "provider_error"]
+
+
+LanguageFeedback = Annotated[
+    AvailableLanguageFeedback | UnavailableLanguageFeedback,
+    Field(discriminator="status"),
+]
+
+
 class AnalysisJobRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -82,4 +135,5 @@ class AnalysisJobRead(BaseModel):
     report: MockReport | None
     transcript: Transcript | None
     metrics: SpeechMetrics | None
+    language_feedback: LanguageFeedback | None
     error_message: str | None

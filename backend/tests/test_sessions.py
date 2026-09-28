@@ -2,6 +2,7 @@ from collections.abc import Iterator
 from uuid import UUID
 
 import pytest
+from ai.language.coach import LanguageCoachError
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -190,6 +191,43 @@ def test_upload_request_rejects_unsupported_or_oversize_files(db: None) -> None:
     )
 
 
+def test_language_coach_without_key_is_explicitly_unavailable(monkeypatch) -> None:
+    monkeypatch.setattr(
+        analysis_jobs,
+        "get_settings",
+        lambda: Settings(database_url="sqlite://", openai_api_key=None),
+    )
+    feedback = analysis_jobs.analyze_language_safely(
+        {"text": "I learned something.", "segments": []},
+        {"total_words": 3},
+        {"topic": "A lesson"},
+    )
+    assert feedback == {"status": "unavailable", "reason": "not_configured"}
+
+
+def test_invalid_language_output_cannot_fail_analysis(monkeypatch) -> None:
+    monkeypatch.setattr(
+        analysis_jobs,
+        "get_settings",
+        lambda: Settings(database_url="sqlite://", openai_api_key="test-only-key"),
+    )
+
+    class BrokenCoach:
+        def __init__(self, api_key: str, model: str) -> None:
+            assert api_key == "test-only-key"
+
+        def analyze(self, transcript: dict, metrics: dict, context: dict) -> None:
+            raise LanguageCoachError("Invalid provider output")
+
+    monkeypatch.setattr(analysis_jobs, "OpenAILanguageCoach", BrokenCoach)
+    feedback = analysis_jobs.analyze_language_safely(
+        {"text": "I learned something.", "segments": []},
+        {"total_words": 3},
+        {"topic": "A lesson"},
+    )
+    assert feedback == {"status": "unavailable", "reason": "provider_error"}
+
+
 def test_analysis_job_progress_report_retry_and_owner_isolation(
     db: sessionmaker[Session], monkeypatch
 ) -> None:
@@ -243,6 +281,24 @@ def test_analysis_job_progress_report_retry_and_owner_isolation(
     monkeypatch.setattr(
         analysis_jobs, "_transcribe_job", lambda factory, job_id: sample_transcript
     )
+    sample_feedback = {
+        "status": "available",
+        "model": "test-model",
+        "analysis": {
+            "summary": "A clear short statement.",
+            "strengths": ["Clear topic."],
+            "major_improvements": [],
+            "grammar_issues": [],
+            "clarity_suggestions": [],
+            "vocabulary_suggestions": [],
+            "practice_exercise": "Tell another short story.",
+        },
+    }
+    monkeypatch.setattr(
+        analysis_jobs,
+        "analyze_language_safely",
+        lambda transcript, metrics, context: sample_feedback,
+    )
 
     def observe_stage(_: float) -> None:
         observed.append(client.get(path).json()["status"])
@@ -259,9 +315,23 @@ def test_analysis_job_progress_report_retry_and_owner_isolation(
     assert completed["metrics"]["total_words"] == 4
     assert completed["metrics"]["words_per_minute"] == 88.9
     assert completed["metrics"]["pause_count"] == 1
+    assert completed["language_feedback"] == sample_feedback
     assert "metrics" not in completed["report"]
     assert client.get(f"/api/sessions/{session_id}").json()["status"] == "completed"
+    with db() as session:
+        saved_session = session.get(PracticeSession, UUID(session_id))
+        assert saved_session is not None
+        assert len(saved_session.analysis_version) <= 40
     assert client.post(path).json()["status"] == "completed"
+
+    with db() as session:
+        job = session.get(AnalysisJob, UUID(submitted.json()["id"]))
+        assert job is not None
+        job.language_feedback = None
+        session.commit()
+    assert client.post(path).json()["status"] == "queued"
+    assert analysis_jobs.process_next_job(db, delay_seconds=0)
+    assert client.get(path).json()["language_feedback"] == sample_feedback
 
     with db() as session:
         job = session.get(AnalysisJob, UUID(submitted.json()["id"]))
@@ -295,8 +365,18 @@ def test_analysis_job_progress_report_retry_and_owner_isolation(
     assert client.get(f"/api/sessions/{session_id}").json()["status"] == "failed"
     assert client.post(path).json()["status"] == "queued"
     monkeypatch.setattr(analysis_jobs, "make_mock_report", original_report)
+    monkeypatch.setattr(
+        analysis_jobs,
+        "analyze_language_safely",
+        lambda transcript, metrics, context: {
+            "status": "unavailable",
+            "reason": "provider_error",
+        },
+    )
     assert analysis_jobs.process_next_job(db, delay_seconds=0)
     assert client.get(path).json()["status"] == "completed"
+    assert client.get(path).json()["report"]["mode"] == "mock"
+    assert client.get(path).json()["language_feedback"]["reason"] == "provider_error"
 
     assert client.delete(f"/api/sessions/{session_id}").status_code == 204
     with db() as session:

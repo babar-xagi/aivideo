@@ -8,6 +8,7 @@ import { AnalysisProgress } from "@/features/sessions/analysis-progress";
 import { MockReport } from "@/features/sessions/mock-report";
 import { Transcript } from "@/features/sessions/transcript";
 import { SpeechMetrics } from "@/features/sessions/speech-metrics";
+import { LanguageFeedback } from "@/features/sessions/language-feedback";
 
 export const dynamic = "force-dynamic";
 
@@ -86,6 +87,7 @@ export default async function SessionPage({
       )}
       {analysisJob?.transcript && <Transcript transcript={analysisJob.transcript} />}
       {analysisJob?.metrics && <SpeechMetrics metrics={analysisJob.metrics} />}
+      {analysisJob?.language_feedback?.status === "available" && <LanguageFeedback analysis={analysisJob.language_feedback.analysis} />}
       {session.status === "completed" && analysisJob?.report && (
         <MockReport report={analysisJob.report} />
       )}
@@ -96,6 +98,13 @@ export default async function SessionPage({
           <form action={`/sessions/${session.id}/analysis`} method="post" className="mt-5">
             <button type="submit" className="rounded-xl bg-sky-800 px-6 py-3 font-semibold text-white hover:bg-sky-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-800">Measure saved recording</button>
           </form>
+        </section>
+      )}
+      {session.status === "completed" && analysisJob?.metrics && analysisJob.language_feedback?.status !== "available" && (
+        <section aria-labelledby="language-unavailable-heading" className="mt-8 rounded-2xl border border-sky-200 bg-sky-50 p-7">
+          <h2 id="language-unavailable-heading" className="text-xl font-semibold text-sky-950">English language feedback</h2>
+          <p className="mt-2 text-sm text-sky-900">{analysisJob.language_feedback?.reason === "no_speech" ? "No recognizable speech was found to review." : analysisJob.language_feedback?.reason === "provider_error" ? "The language coach could not produce reliable feedback this time. Your transcript and speech metrics are saved." : "Language coaching is not enabled on this server yet. Your transcript and speech metrics are saved."}</p>
+          {analysisJob.language_feedback?.reason !== "no_speech" && <form action={`/sessions/${session.id}/analysis`} method="post" className="mt-5"><button type="submit" className="rounded-xl bg-sky-800 px-6 py-3 font-semibold text-white hover:bg-sky-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-800">{analysisJob.language_feedback?.reason === "provider_error" ? "Retry language feedback" : "Analyze saved transcript"}</button></form>}
         </section>
       )}
       {session.status === "failed" && (

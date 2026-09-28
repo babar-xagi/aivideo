@@ -75,6 +75,16 @@ def main() -> None:
             metrics = current.json()["metrics"]
             assert metrics["total_words"] == len(transcript["words"])
             assert metrics["words_per_minute"] is not None
+            feedback = current.json()["language_feedback"]
+            assert feedback["status"] in {"available", "unavailable"}
+            if feedback["status"] == "available":
+                assert feedback["analysis"]["summary"]
+            else:
+                assert feedback["reason"] in {
+                    "not_configured",
+                    "no_speech",
+                    "provider_error",
+                }
             assert "my fellow americans" in transcript["text"].lower()
             assert "your country" in transcript["text"].lower()
             assert transcript["segments"][0]["start"] >= 0

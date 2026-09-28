@@ -37,11 +37,18 @@ def submit_analysis(
         job = AnalysisJob(session_id=session_id, status="queued")
         db.add(job)
     elif job.status == "failed" or (
-        job.status == "completed" and (job.transcript is None or job.metrics is None)
+        job.status == "completed"
+        and (
+            job.transcript is None
+            or job.metrics is None
+            or job.language_feedback is None
+            or job.language_feedback.get("status") == "unavailable"
+        )
     ):
         job.status = "queued"
         job.report = None
         job.metrics = None
+        job.language_feedback = None
         job.error_message = None
         job.lease_expires_at = None
         job.updated_at = utc_now()

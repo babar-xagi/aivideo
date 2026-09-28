@@ -32,4 +32,5 @@ class AnalysisJob(Base):
     report: Mapped[dict | None] = mapped_column(JSON)
     transcript: Mapped[dict | None] = mapped_column(JSON)
     metrics: Mapped[dict | None] = mapped_column(JSON)
+    language_feedback: Mapped[dict | None] = mapped_column(JSON)
     error_message: Mapped[str | None] = mapped_column(String(200))

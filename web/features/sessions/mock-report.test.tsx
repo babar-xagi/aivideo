@@ -34,5 +34,5 @@ test("report distinguishes real transcription from sample coaching", () => {
     }} />,
   );
   expect(screen.getByText("Sample coaching · Transcript is real")).toBeTruthy();
-  expect(screen.getByText("Measured feedback will be added in later milestones.")).toBeTruthy();
+  expect(screen.getByText("Speech metrics and language feedback appear separately above when available. These presentation ideas remain general examples.")).toBeTruthy();
 });

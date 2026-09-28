@@ -8,6 +8,7 @@ from tempfile import TemporaryDirectory
 from threading import Event, Thread
 from uuid import UUID
 
+from ai.language.coach import OpenAILanguageCoach
 from ai.mock import make_mock_report
 from ai.speech.metrics import calculate_speech_metrics
 from ai.speech.transcribe import TranscriptionError, transcribe_recording
@@ -28,6 +29,27 @@ STAGES = (
     "creating_feedback",
 )
 LEASE_SECONDS = 60
+
+
+def analyze_language_safely(
+    transcript: dict, metrics: dict, practice_context: dict
+) -> dict:
+    if not str(transcript.get("text", "")).strip():
+        return {"status": "unavailable", "reason": "no_speech"}
+    settings = get_settings()
+    if not settings.openai_api_key:
+        return {"status": "unavailable", "reason": "not_configured"}
+    try:
+        coach = OpenAILanguageCoach(settings.openai_api_key, settings.openai_model)
+        analysis = coach.analyze(transcript, metrics, practice_context)
+        return {
+            "status": "available",
+            "model": settings.openai_model,
+            "analysis": analysis.model_dump(),
+        }
+    except Exception as exc:
+        logger.warning("Language feedback unavailable: %s", type(exc).__name__)
+        return {"status": "unavailable", "reason": "provider_error"}
 
 
 def _renew_lease(factory: sessionmaker[Session], job_id: UUID, stop: Event) -> None:
@@ -129,9 +151,19 @@ def process_next_job(
             job = db.get(AnalysisJob, job_id)
             if job is None:
                 return True
+            practice_session = db.get(PracticeSession, job.session_id)
+            if practice_session is None:
+                db.delete(job)
+                db.commit()
+                return True
+            practice_context = {
+                "topic": practice_session.topic,
+                "practice_type": practice_session.practice_type,
+            }
             job.transcript = transcript
             job.updated_at = utc_now()
             db.commit()
+        metrics = calculate_speech_metrics(transcript)
         for stage in STAGES[1:]:
             time.sleep(delay_seconds)
             with factory() as db:
@@ -140,10 +172,21 @@ def process_next_job(
                     return True
                 job.status = stage
                 if stage == "analyzing_fluency":
-                    job.metrics = calculate_speech_metrics(transcript)
+                    job.metrics = metrics
                 job.updated_at = utc_now()
                 job.lease_expires_at = job.updated_at + timedelta(seconds=LEASE_SECONDS)
                 db.commit()
+            if stage == "analyzing_english":
+                feedback = analyze_language_safely(
+                    transcript, metrics, practice_context
+                )
+                with factory() as db:
+                    job = db.get(AnalysisJob, job_id)
+                    if job is None:
+                        return True
+                    job.language_feedback = feedback
+                    job.updated_at = utc_now()
+                    db.commit()
 
         time.sleep(delay_seconds)
         with factory() as db:
@@ -160,7 +203,7 @@ def process_next_job(
             job.updated_at = utc_now()
             job.lease_expires_at = None
             practice_session.status = "completed"
-            practice_session.analysis_version = "transcript-v2+fluency-v1+mock-v1"
+            practice_session.analysis_version = "speech-v2+language-v1+mock-v1"
             db.commit()
         return True
     except Exception as exc:
