@@ -12,6 +12,7 @@ from ai.language.coach import OpenAILanguageCoach
 from ai.mock import make_mock_report
 from ai.speech.metrics import calculate_speech_metrics
 from ai.speech.transcribe import TranscriptionError, transcribe_recording
+from ai.vision.analyze import analyze_recording
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -25,6 +26,7 @@ STAGES = (
     "transcribing",
     "analyzing_fluency",
     "analyzing_english",
+    "analyzing_vision",
     "analyzing_presentation",
     "creating_feedback",
 )
@@ -50,6 +52,23 @@ def analyze_language_safely(
     except Exception as exc:
         logger.warning("Language feedback unavailable: %s", type(exc).__name__)
         return {"status": "unavailable", "reason": "provider_error"}
+
+
+def analyze_vision_safely(key: str) -> dict:
+    model_dir = Path(__file__).resolve().parents[3] / ".cache" / "models" / "vision"
+    if not model_dir.is_dir():
+        return {"status": "unavailable", "reason": "models_missing"}
+    try:
+        with TemporaryDirectory(prefix="english-coach-vision-") as temp_dir:
+            recording = Path(temp_dir) / "recording"
+            get_storage_service().download_object(key, recording)
+            return analyze_recording(recording, model_dir)
+    except OSError as exc:
+        logger.warning("Vision runtime unavailable: %s", type(exc).__name__)
+        return {"status": "unavailable", "reason": "runtime_missing"}
+    except Exception as exc:
+        logger.warning("Vision feedback unavailable: %s", type(exc).__name__)
+        return {"status": "unavailable", "reason": "decode_error"}
 
 
 def _renew_lease(factory: sessionmaker[Session], job_id: UUID, stop: Event) -> None:
@@ -160,6 +179,8 @@ def process_next_job(
                 "topic": practice_session.topic,
                 "practice_type": practice_session.practice_type,
             }
+            recording_key = practice_session.recording_object_key
+            existing_vision = job.vision_feedback
             job.transcript = transcript
             job.updated_at = utc_now()
             db.commit()
@@ -187,6 +208,21 @@ def process_next_job(
                     job.language_feedback = feedback
                     job.updated_at = utc_now()
                     db.commit()
+            if stage == "analyzing_vision":
+                vision = (
+                    existing_vision
+                    if existing_vision and existing_vision.get("status") == "available"
+                    else analyze_vision_safely(recording_key)
+                    if recording_key
+                    else {"status": "unavailable", "reason": "decode_error"}
+                )
+                with factory() as db:
+                    job = db.get(AnalysisJob, job_id)
+                    if job is None:
+                        return True
+                    job.vision_feedback = vision
+                    job.updated_at = utc_now()
+                    db.commit()
 
         time.sleep(delay_seconds)
         with factory() as db:
@@ -203,7 +239,9 @@ def process_next_job(
             job.updated_at = utc_now()
             job.lease_expires_at = None
             practice_session.status = "completed"
-            practice_session.analysis_version = "speech-v2+language-v1+mock-v1"
+            practice_session.analysis_version = (
+                "speech-v2+language-v1+vision-v1+mock-v1"
+            )
             db.commit()
         return True
     except Exception as exc:

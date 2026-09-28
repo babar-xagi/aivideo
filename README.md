@@ -1,6 +1,6 @@
 # English Coach
 
-An AI-powered English speaking coach. This repository implements **Milestones 1–10** from [project.md](project.md): foundation, authentication, practice sessions, browser recording, private signed uploads, a persistent analysis worker, timestamped English transcription, measured fluency, structured language coaching, and an interactive report. Presentation coaching suggestions are still sample output.
+An AI-powered English speaking coach. This repository implements **Milestones 1–11** from [project.md](project.md): foundation, authentication, practice sessions, browser recording, private signed uploads, a persistent analysis worker, timestamped English transcription, measured fluency, structured language coaching, an interactive report, and basic MediaPipe video measurements. Presentation coaching suggestions are still sample output.
 
 ## Structure
 
@@ -17,6 +17,8 @@ The frontend protects `/dashboard` and `/sessions` with a verified Supabase sess
 
 Run commands in Ubuntu WSL from `/mnt/d/aivideo`. You need Bun 1.4+, uv 0.12+, Docker with Compose, and internet access for initial downloads. `uv` installs the requested Python 3.12 interpreter when needed. Use `uv --version` to check uv itself. The `imageio-ffmpeg` dependency provides the FFmpeg binary, so a separate system FFmpeg installation is not required.
 
+MediaPipe also needs the Ubuntu `libgles2` runtime (`sudo apt install libgles2`). The worker reports video analysis as unavailable if this library or the model bundles are missing; speech analysis still completes.
+
 ## Local setup without a cloud account
 
 Start the application database, private object storage, and a minimal local Supabase Auth stack:
@@ -28,9 +30,10 @@ python3 scripts/configure_local_storage.py
 docker compose up -d db storage
 bunx supabase@2.118.0 start -x realtime,storage-api,imgproxy,mailpit,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
 python3 scripts/configure_local_supabase.py
+python3 scripts/download_vision_models.py
 ```
 
-The storage setup script writes SeaweedFS credentials from the ignored `.env` into ignored `storage/s3.json`. The Supabase setup script writes the local Supabase URL and **publishable key only** to the ignored `.env` and `web/.env.local` files. Local sign-up does not require email confirmation. The application database uses host port `5433`, leaving `5432` available for an existing PostgreSQL service.
+The storage setup script writes SeaweedFS credentials from the ignored `.env` into ignored `storage/s3.json`. The Supabase setup script writes the local Supabase URL and **publishable key only** to the ignored `.env` and `web/.env.local` files. The vision setup downloads Google's face, hand, and pose task models into ignored `.cache/models/vision`. Local sign-up does not require email confirmation. The application database uses host port `5433`, leaving `5432` available for an existing PostgreSQL service.
 
 In a second WSL terminal, start FastAPI:
 
@@ -66,6 +69,8 @@ For live language feedback, add `OPENAI_API_KEY` to the ignored root `.env` and 
 Session APIs require a valid Supabase bearer token: `POST /api/sessions`, `GET /api/sessions`, `GET /api/sessions/{id}`, `DELETE /api/sessions/{id}`, `POST /api/sessions/{id}/upload-url`, `POST /api/sessions/{id}/complete-upload`, `GET /api/sessions/{id}/recording-url`, `POST /api/sessions/{id}/analysis`, and `GET /api/sessions/{id}/analysis`. Every operation is scoped to the owner. Uploads accept WebM or MP4 up to 500 MB and a reported duration up to 10 minutes. Deleting a session also deletes its stored recording and job. Run `uv run --env-file ../.env alembic upgrade head` after future database updates.
 
 To stop local services later, run `bunx supabase@2.118.0 stop` and `docker compose down` from the repository root. The application PostgreSQL volume is retained.
+
+MediaPipe samples up to 120 frames at five-second intervals and reports a rough head orientation, camera-facing proxy, hand visibility, and torso position changes. These estimates depend on framing and lighting; they do not measure eye contact, confidence, or personality. Only aggregate measurements are saved, not landmark coordinates or extracted frames. Earlier completed sessions can use **Measure saved video** to add vision results.
 
 ## Use a hosted Supabase project later
 
@@ -135,4 +140,4 @@ If you change `POSTGRES_PORT`, update the port in `DATABASE_URL` too. Changing t
 
 ## Next milestone
 
-Milestone 11 adds basic camera-facing and movement analysis from video frames.
+Milestone 12 improves loading, errors, responsive behavior, accessibility, security, privacy controls, tests, and documentation.

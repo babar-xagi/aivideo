@@ -7,6 +7,7 @@ import { MockReport } from "./mock-report";
 import { SpeechMetrics } from "./speech-metrics";
 import { Timeline, buildTimelineEvents, formatTime } from "./timeline";
 import { Transcript } from "./transcript";
+import { VisionReport } from "./vision-report";
 
 function Snapshot({ label, value }: { label: string; value: string | number }) {
   return <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><dt className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</dt><dd className="mt-2 text-2xl font-semibold tabular-nums text-slate-950">{value}</dd></div>;
@@ -88,6 +89,7 @@ export function SessionReport({
 
       {job.transcript && <Transcript transcript={job.transcript} onSeek={canSeek ? seekTo : undefined} currentTime={currentTime} />}
       {job.metrics && <SpeechMetrics metrics={job.metrics} />}
+      <VisionReport feedback={job.vision_feedback} sessionId={session.id} />
       {analysis && <LanguageFeedback analysis={analysis} onSeek={canSeek ? seekTo : undefined} />}
       {job.metrics && !analysis && (
         <section aria-labelledby="language-unavailable-heading" className="rounded-2xl border border-sky-200 bg-sky-50 p-7">

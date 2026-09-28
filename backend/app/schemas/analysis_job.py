@@ -115,6 +115,24 @@ LanguageFeedback = Annotated[
 ]
 
 
+class VisionFeedback(BaseModel):
+    status: Literal["available", "unavailable"]
+    reason: (
+        Literal["models_missing", "runtime_missing", "decode_error", "no_person"] | None
+    ) = None
+    sample_interval_seconds: float | None = None
+    sampled_frames: int = 0
+    face_frames: int = 0
+    pose_frames: int = 0
+    hand_frames: int = 0
+    facing_camera_percent: float | None = None
+    head_left_percent: float | None = None
+    head_center_percent: float | None = None
+    head_right_percent: float | None = None
+    hands_visible_percent: float | None = None
+    body_movement_percent: float | None = None
+
+
 class AnalysisJobRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -125,6 +143,7 @@ class AnalysisJobRead(BaseModel):
         "transcribing",
         "analyzing_fluency",
         "analyzing_english",
+        "analyzing_vision",
         "analyzing_presentation",
         "creating_feedback",
         "completed",
@@ -136,4 +155,5 @@ class AnalysisJobRead(BaseModel):
     transcript: Transcript | None
     metrics: SpeechMetrics | None
     language_feedback: LanguageFeedback | None
+    vision_feedback: VisionFeedback | None
     error_message: str | None

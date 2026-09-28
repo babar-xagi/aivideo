@@ -299,6 +299,19 @@ def test_analysis_job_progress_report_retry_and_owner_isolation(
         "analyze_language_safely",
         lambda transcript, metrics, context: sample_feedback,
     )
+    sample_vision = {
+        "status": "available",
+        "sample_interval_seconds": 5,
+        "sampled_frames": 2,
+        "face_frames": 2,
+        "pose_frames": 2,
+        "hand_frames": 1,
+        "facing_camera_percent": 50,
+        "hands_visible_percent": 50,
+    }
+    monkeypatch.setattr(
+        analysis_jobs, "analyze_vision_safely", lambda key: sample_vision
+    )
 
     def observe_stage(_: float) -> None:
         observed.append(client.get(path).json()["status"])
@@ -316,6 +329,7 @@ def test_analysis_job_progress_report_retry_and_owner_isolation(
     assert completed["metrics"]["words_per_minute"] == 88.9
     assert completed["metrics"]["pause_count"] == 1
     assert completed["language_feedback"] == sample_feedback
+    assert completed["vision_feedback"]["facing_camera_percent"] == 50
     assert "metrics" not in completed["report"]
     assert client.get(f"/api/sessions/{session_id}").json()["status"] == "completed"
     with db() as session:

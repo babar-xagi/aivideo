@@ -25,6 +25,12 @@ const job: AnalysisJob = {
   created_at: "2026-09-28T00:00:00Z",
   updated_at: "2026-09-28T00:00:00Z",
   error_message: null,
+  vision_feedback: {
+    status: "available", reason: null, sample_interval_seconds: 5, sampled_frames: 3,
+    face_frames: 2, pose_frames: 3, hand_frames: 1, facing_camera_percent: 50,
+    head_left_percent: 50, head_center_percent: 50, head_right_percent: 0,
+    hands_visible_percent: 33.3, body_movement_percent: 50,
+  },
   transcript: {
     language: "en",
     model: "tiny.en",
@@ -100,6 +106,9 @@ test("timeline, transcript, and correction timestamps seek the video", () => {
   expect(video.currentTime).toBe(8);
   expect(screen.getAllByText("Your story was easy to follow.").length).toBe(2);
   expect(screen.getByText("54 WPM")).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "Visible movement" })).toBeTruthy();
+  expect(screen.getByText("Head approximately toward camera")).toBeTruthy();
+  expect(screen.getByText(/cannot measure eye contact, confidence, or presentation quality/)).toBeTruthy();
 });
 
 test("report keeps sample guidance labeled and disables seeking without playback", () => {

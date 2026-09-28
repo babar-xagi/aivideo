@@ -100,11 +100,28 @@ export type LanguageFeedback =
   | { status: "available"; model: string; analysis: LanguageAnalysis }
   | { status: "unavailable"; reason: "not_configured" | "no_speech" | "provider_error" };
 
+export type VisionFeedback = {
+  status: "available" | "unavailable";
+  reason: "models_missing" | "runtime_missing" | "decode_error" | "no_person" | null;
+  sample_interval_seconds: number | null;
+  sampled_frames: number;
+  face_frames: number;
+  pose_frames: number;
+  hand_frames: number;
+  facing_camera_percent: number | null;
+  head_left_percent: number | null;
+  head_center_percent: number | null;
+  head_right_percent: number | null;
+  hands_visible_percent: number | null;
+  body_movement_percent: number | null;
+};
+
 export type AnalysisStatus =
   | "queued"
   | "transcribing"
   | "analyzing_fluency"
   | "analyzing_english"
+  | "analyzing_vision"
   | "analyzing_presentation"
   | "creating_feedback"
   | "completed"
@@ -120,6 +137,7 @@ export type AnalysisJob = {
   transcript: Transcript | null;
   metrics: SpeechMetrics | null;
   language_feedback: LanguageFeedback | null;
+  vision_feedback: VisionFeedback | null;
   error_message: string | null;
 };
 
