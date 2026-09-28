@@ -5,10 +5,10 @@ import { getSupabaseConfig } from "@/lib/supabase/config";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { Recorder } from "@/features/recorder/recorder";
 import { AnalysisProgress } from "@/features/sessions/analysis-progress";
-import { MockReport } from "@/features/sessions/mock-report";
 import { Transcript } from "@/features/sessions/transcript";
 import { SpeechMetrics } from "@/features/sessions/speech-metrics";
 import { LanguageFeedback } from "@/features/sessions/language-feedback";
+import { SessionReport } from "@/features/sessions/session-report";
 
 export const dynamic = "force-dynamic";
 
@@ -43,9 +43,10 @@ export default async function SessionPage({
     ? await Promise.all([getRecordingUrl(token, id), getAnalysisJob(token, id)])
     : [null, null];
   const { error: pageError } = await searchParams;
+  const completedJob = session.status === "completed" && analysisJob?.report ? analysisJob : null;
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-3xl px-6 py-8 sm:px-10">
+    <main className="mx-auto min-h-screen w-full max-w-5xl px-6 py-8 sm:px-10">
       <Link href="/dashboard" className="text-sm font-semibold text-sky-800 hover:underline">← Dashboard</Link>
       <div className="mt-14">
         <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-700">Practice session</p>
@@ -53,7 +54,9 @@ export default async function SessionPage({
         <p className="mt-4 text-slate-600">{style} · Created {new Date(session.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</p>
       </div>
 
-      {saved ? (
+      {completedJob ? (
+        <SessionReport session={session} job={completedJob} recordingUrl={recordingUrl} />
+      ) : saved ? (
         <section aria-labelledby="saved-recording-heading" className="mt-10 rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
           <h2 id="saved-recording-heading" className="text-xl font-semibold text-slate-900">Your saved recording</h2>
           <p className="mt-2 text-sm text-slate-600">Stored privately. Only your signed-in session can request a temporary playback link.</p>
@@ -85,28 +88,9 @@ export default async function SessionPage({
       {(session.status === "queued" || session.status === "processing") && !analysisJob && (
         <p role="alert" className="mt-8 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">Analysis status is unavailable. Refresh this page to try again.</p>
       )}
-      {analysisJob?.transcript && <Transcript transcript={analysisJob.transcript} />}
-      {analysisJob?.metrics && <SpeechMetrics metrics={analysisJob.metrics} />}
-      {analysisJob?.language_feedback?.status === "available" && <LanguageFeedback analysis={analysisJob.language_feedback.analysis} />}
-      {session.status === "completed" && analysisJob?.report && (
-        <MockReport report={analysisJob.report} />
-      )}
-      {session.status === "completed" && analysisJob && !analysisJob.metrics && (
-        <section aria-labelledby="upgrade-transcript-heading" className="mt-8 rounded-2xl border border-sky-200 bg-sky-50 p-7">
-          <h2 id="upgrade-transcript-heading" className="text-xl font-semibold text-sky-950">Measure this saved recording</h2>
-          <p className="mt-2 text-sm text-sky-900">This session can now receive real speaking pace, pause, hesitation, and repetition metrics from its recording.</p>
-          <form action={`/sessions/${session.id}/analysis`} method="post" className="mt-5">
-            <button type="submit" className="rounded-xl bg-sky-800 px-6 py-3 font-semibold text-white hover:bg-sky-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-800">Measure saved recording</button>
-          </form>
-        </section>
-      )}
-      {session.status === "completed" && analysisJob?.metrics && analysisJob.language_feedback?.status !== "available" && (
-        <section aria-labelledby="language-unavailable-heading" className="mt-8 rounded-2xl border border-sky-200 bg-sky-50 p-7">
-          <h2 id="language-unavailable-heading" className="text-xl font-semibold text-sky-950">English language feedback</h2>
-          <p className="mt-2 text-sm text-sky-900">{analysisJob.language_feedback?.reason === "no_speech" ? "No recognizable speech was found to review." : analysisJob.language_feedback?.reason === "provider_error" ? "The language coach could not produce reliable feedback this time. Your transcript and speech metrics are saved." : "Language coaching is not enabled on this server yet. Your transcript and speech metrics are saved."}</p>
-          {analysisJob.language_feedback?.reason !== "no_speech" && <form action={`/sessions/${session.id}/analysis`} method="post" className="mt-5"><button type="submit" className="rounded-xl bg-sky-800 px-6 py-3 font-semibold text-white hover:bg-sky-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-800">{analysisJob.language_feedback?.reason === "provider_error" ? "Retry language feedback" : "Analyze saved transcript"}</button></form>}
-        </section>
-      )}
+      {!completedJob && analysisJob?.transcript && <Transcript transcript={analysisJob.transcript} />}
+      {!completedJob && analysisJob?.metrics && <SpeechMetrics metrics={analysisJob.metrics} />}
+      {!completedJob && analysisJob?.language_feedback?.status === "available" && <LanguageFeedback analysis={analysisJob.language_feedback.analysis} />}
       {session.status === "failed" && (
         <section aria-labelledby="analysis-error-heading" className="mt-8 rounded-2xl border border-rose-200 bg-rose-50 p-7">
           <h2 id="analysis-error-heading" className="text-xl font-semibold text-rose-900">Transcription or report creation failed</h2>
