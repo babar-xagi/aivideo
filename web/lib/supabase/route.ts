@@ -55,12 +55,21 @@ export function publicRedirectUrl(request: NextRequest, path: string): URL {
 }
 
 export function isSameOrigin(request: NextRequest): boolean {
-  const origin = request.headers.get("origin");
-  if (!origin || !request.headers.get("host")) {
+  if (!request.headers.get("host")) {
     return false;
   }
+
+  const origin = request.headers.get("origin");
+  if (!origin || origin === "null") {
+    return request.headers.get("sec-fetch-site") === "same-origin";
+  }
+
   try {
-    return new URL(origin).origin === publicRedirectUrl(request, "/").origin;
+    const requestOrigin = new URL(origin).origin;
+    return (
+      requestOrigin === request.nextUrl.origin ||
+      requestOrigin === publicRedirectUrl(request, "/").origin
+    );
   } catch {
     return false;
   }
