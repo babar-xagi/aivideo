@@ -279,19 +279,21 @@ export function Recorder({ sessionId }: { sessionId: string }) {
 
   return (
     <section aria-labelledby="recorder-heading" className="mt-10 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-4 p-7 pb-5">
+      <div className="flex flex-wrap items-center justify-between gap-4 p-4 pb-5 sm:p-7">
         <div>
           <h2 id="recorder-heading" className="text-xl font-semibold text-slate-900">Record your practice</h2>
           <p className="mt-2 text-sm text-slate-600">Speak naturally for up to 10 minutes. You can preview and try again.</p>
         </div>
-        <div role="status" aria-live="polite" className="flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">
-          <span className={`h-2.5 w-2.5 rounded-full ${phase === "recording" ? "animate-pulse bg-rose-600" : "bg-slate-400"}`} aria-hidden="true" />
-          {phase === "recording" ? "Recording" : phase === "requesting" ? "Waiting for permission" : phase === "stopping" ? "Finishing" : phase === "ready" ? "Ready to preview" : "Ready"}
-          {live ? ` · ${formatTime(elapsedSeconds)}` : null}
+        <div className="flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">
+          <span role="status" aria-live="polite" className="flex items-center gap-2">
+            <span className={`h-2.5 w-2.5 rounded-full ${phase === "recording" ? "motion-safe:animate-pulse bg-rose-600" : "bg-slate-400"}`} aria-hidden="true" />
+            {phase === "recording" ? "Recording" : phase === "requesting" ? "Waiting for permission" : phase === "stopping" ? "Finishing" : phase === "ready" ? "Ready to preview" : "Ready"}
+          </span>
+          {live && <time aria-label={`Elapsed time ${formatTime(elapsedSeconds)}`} className="tabular-nums">· {formatTime(elapsedSeconds)}</time>}
         </div>
       </div>
 
-      <div className="relative mx-7 flex aspect-video items-center justify-center overflow-hidden rounded-xl bg-slate-950 text-center text-slate-300">
+      <div className="relative mx-4 flex aspect-video items-center justify-center overflow-hidden rounded-xl bg-slate-950 text-center text-slate-300 sm:mx-7">
         <video ref={liveVideoRef} autoPlay muted playsInline className={`h-full w-full object-cover ${live ? "block" : "hidden"}`} aria-label="Live camera preview" />
         {phase === "ready" && previewUrl ? (
           <video key={previewUrl} src={previewUrl} controls playsInline preload="metadata" className="h-full w-full object-contain" aria-label="Recorded practice preview" />
@@ -302,7 +304,7 @@ export function Recorder({ sessionId }: { sessionId: string }) {
         ) : null}
       </div>
 
-      <div className="p-7">
+      <div className="p-4 sm:p-7">
         {error && <p role="alert" className="mb-5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">{error}</p>}
         {notice && <p role="status" className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">{notice}</p>}
         <div className="flex flex-wrap items-center gap-3">

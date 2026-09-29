@@ -37,7 +37,8 @@ export function SessionReport({
     const target = Math.min(Math.max(seconds, 0), Math.max(duration - 0.05, 0));
     video.currentTime = target;
     setCurrentTime(target);
-    video.scrollIntoView?.({ behavior: "smooth", block: "center" });
+    const reducedMotion = typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    video.scrollIntoView?.({ behavior: reducedMotion ? "auto" : "smooth", block: "center" });
   }
 
   const analysis = job.language_feedback?.status === "available" ? job.language_feedback.analysis : null;

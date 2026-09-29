@@ -17,7 +17,9 @@ const stages: Array<{ status: AnalysisStatus; label: string }> = [
 export function AnalysisProgress({ status }: { status: AnalysisStatus }) {
   const router = useRouter();
   useEffect(() => {
-    const timer = window.setInterval(() => router.refresh(), 1500);
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") router.refresh();
+    }, 1500);
     return () => window.clearInterval(timer);
   }, [router]);
   const currentIndex = stages.findIndex((stage) => stage.status === status);

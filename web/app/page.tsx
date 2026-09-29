@@ -8,12 +8,12 @@ export default async function Home() {
   const connected = health.status === "connected";
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-6 py-8 sm:px-10">
-      <header className="flex items-center justify-between border-b border-slate-200 pb-6">
+    <main id="main-content" tabIndex={-1} className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 py-8 sm:px-10">
+      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-6">
         <span className="text-lg font-semibold tracking-tight text-slate-900">
           English Coach
         </span>
-        <nav className="flex items-center gap-4 text-sm font-semibold">
+        <nav className="flex flex-wrap items-center gap-4 text-sm font-semibold">
           <Link href="/auth/sign-in" className="text-slate-700 hover:text-sky-800">
             Sign in
           </Link>

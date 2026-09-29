@@ -43,9 +43,14 @@ def submit_analysis(
             or job.metrics is None
             or job.language_feedback is None
             or job.language_feedback.get("status") == "unavailable"
-            or job.vision_feedback is None
-            or job.vision_feedback.get("reason")
-            in {"models_missing", "runtime_missing", "decode_error"}
+            or (
+                practice_session.vision_enabled
+                and (
+                    job.vision_feedback is None
+                    or job.vision_feedback.get("reason")
+                    in {"models_missing", "runtime_missing", "decode_error"}
+                )
+            )
         )
     ):
         job.status = "queued"

@@ -22,17 +22,17 @@ export default async function NewSessionPage({
   const { error: pageError } = await searchParams;
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-3xl px-6 py-8 sm:px-10">
+    <main id="main-content" tabIndex={-1} className="mx-auto min-h-screen w-full max-w-3xl px-4 py-8 sm:px-10">
       <Link href="/dashboard" className="text-sm font-semibold text-sky-800 hover:underline">
         ← Dashboard
       </Link>
       <div className="mt-14">
         <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-700">New practice session</p>
-        <h1 className="mt-3 text-4xl font-semibold text-slate-950">What would you like to talk about?</h1>
+        <h1 className="mt-3 text-3xl font-semibold text-slate-950 sm:text-4xl">What would you like to talk about?</h1>
         <p className="mt-4 text-slate-600">Pick a practice style and give your session a topic. Then you can record and preview your speaking practice.</p>
       </div>
 
-      <form action="/sessions/create" method="post" className="mt-10 space-y-6 rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
+      <form action="/sessions/create" method="post" className="mt-10 space-y-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
         {pageError && (
           <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">
             {pageError === "invalid-input"

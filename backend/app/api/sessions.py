@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -13,6 +14,10 @@ from app.schemas.practice_session import SessionCreate, SessionRead
 from app.services.storage import StorageUnavailable, get_storage_service
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
+
+
+class VisionPreference(BaseModel):
+    enabled: bool
 
 
 def owned_session(db: Session, user_id: UUID, session_id: UUID) -> PracticeSession:
@@ -63,6 +68,29 @@ def get_session(
     db: Session = Depends(get_db),
 ) -> PracticeSession:
     return owned_session(db, user.id, session_id)
+
+
+@router.patch("/{session_id}/privacy", response_model=SessionRead)
+def update_vision_preference(
+    session_id: UUID,
+    payload: VisionPreference,
+    user: AuthenticatedUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> PracticeSession:
+    practice_session = owned_session(db, user.id, session_id)
+    if practice_session.status in {"queued", "processing"}:
+        raise HTTPException(status_code=409, detail="Wait for analysis to finish")
+    practice_session.vision_enabled = payload.enabled
+    job = db.scalar(select(AnalysisJob).where(AnalysisJob.session_id == session_id))
+    if job is not None:
+        job.vision_feedback = (
+            None
+            if payload.enabled
+            else {"status": "unavailable", "reason": "disabled_by_user"}
+        )
+    db.commit()
+    db.refresh(practice_session)
+    return practice_session
 
 
 @router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)

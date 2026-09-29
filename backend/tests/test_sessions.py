@@ -67,6 +67,8 @@ def test_session_lifecycle_and_owner_isolation(db: None) -> None:
         json={"topic": "  A lesson I learned  ", "practice_type": "tell_a_story"},
     )
     assert created.status_code == 201
+    assert created.headers["cache-control"] == "private, no-store"
+    assert created.headers["x-content-type-options"] == "nosniff"
     session_id = created.json()["id"]
     assert created.json()["topic"] == "A lesson I learned"
     assert created.json()["status"] == "created"
@@ -92,6 +94,54 @@ def test_session_input_validation(db: None) -> None:
     ):
         assert client.post("/api/sessions", json=payload).status_code == 422
     assert client.get("/api/sessions").json() == []
+
+
+def test_vision_privacy_is_owner_scoped_and_removes_saved_measurements(
+    db: sessionmaker[Session],
+) -> None:
+    created = client.post(
+        "/api/sessions",
+        json={"topic": "A story", "practice_type": "tell_a_story"},
+    ).json()
+    session_id = created["id"]
+    path = f"/api/sessions/{session_id}/privacy"
+    with db() as session:
+        practice = session.get(PracticeSession, UUID(session_id))
+        assert practice is not None
+        practice.status = "completed"
+        session.add(
+            AnalysisJob(
+                session_id=practice.id,
+                status="completed",
+                vision_feedback={"status": "available", "sampled_frames": 8},
+            )
+        )
+        session.commit()
+
+    app.dependency_overrides[get_current_user] = lambda: AuthenticatedUser(id=USER_B)
+    assert client.patch(path, json={"enabled": False}).status_code == 404
+    app.dependency_overrides[get_current_user] = lambda: AuthenticatedUser(id=USER_A)
+    disabled = client.patch(path, json={"enabled": False})
+    assert disabled.status_code == 200
+    assert disabled.json()["vision_enabled"] is False
+    with db() as session:
+        job = session.query(AnalysisJob).filter_by(session_id=UUID(session_id)).one()
+        assert job.vision_feedback == {
+            "status": "unavailable",
+            "reason": "disabled_by_user",
+        }
+
+    assert client.patch(path, json={"enabled": "not-a-boolean"}).status_code == 422
+    enabled = client.patch(path, json={"enabled": True})
+    assert enabled.json()["vision_enabled"] is True
+    with db() as session:
+        job = session.query(AnalysisJob).filter_by(session_id=UUID(session_id)).one()
+        assert job.vision_feedback is None
+        practice = session.get(PracticeSession, UUID(session_id))
+        assert practice is not None
+        practice.status = "processing"
+        session.commit()
+    assert client.patch(path, json={"enabled": False}).status_code == 409
 
 
 def test_sessions_require_authentication(db: None) -> None:
@@ -337,6 +387,29 @@ def test_analysis_job_progress_report_retry_and_owner_isolation(
         assert saved_session is not None
         assert len(saved_session.analysis_version) <= 40
     assert client.post(path).json()["status"] == "completed"
+
+    privacy_path = f"/api/sessions/{session_id}/privacy"
+    assert client.patch(privacy_path, json={"enabled": False}).status_code == 200
+    with db() as session:
+        job = session.get(AnalysisJob, UUID(submitted.json()["id"]))
+        assert job is not None
+        job.language_feedback = None
+        session.commit()
+
+    def reject_vision(_: str) -> dict:
+        raise AssertionError("Disabled video must not be analyzed")
+
+    monkeypatch.setattr(analysis_jobs, "analyze_vision_safely", reject_vision)
+    assert client.post(path).json()["status"] == "queued"
+    assert analysis_jobs.process_next_job(db, delay_seconds=0)
+    assert client.get(path).json()["vision_feedback"]["reason"] == "disabled_by_user"
+    assert client.patch(privacy_path, json={"enabled": True}).status_code == 200
+    monkeypatch.setattr(
+        analysis_jobs, "analyze_vision_safely", lambda key: sample_vision
+    )
+    assert client.post(path).json()["status"] == "queued"
+    assert analysis_jobs.process_next_job(db, delay_seconds=0)
+    assert client.get(path).json()["vision_feedback"]["status"] == "available"
 
     with db() as session:
         job = session.get(AnalysisJob, UUID(submitted.json()["id"]))

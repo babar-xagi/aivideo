@@ -1,6 +1,6 @@
 # English Coach
 
-An AI-powered English speaking coach. This repository implements **Milestones 1–11** from [project.md](project.md): foundation, authentication, practice sessions, browser recording, private signed uploads, a persistent analysis worker, timestamped English transcription, measured fluency, structured language coaching, an interactive report, and basic MediaPipe video measurements. Presentation coaching suggestions are still sample output.
+An AI-powered English speaking coach. This repository implements **Milestones 1–12** from [project.md](project.md): foundation, authentication, practice sessions, browser recording, private signed uploads, a persistent analysis worker, timestamped English transcription, measured fluency, structured language coaching, an interactive report, basic MediaPipe video measurements, and product polish. Presentation coaching suggestions are still sample output.
 
 ## Structure
 
@@ -72,6 +72,14 @@ To stop local services later, run `bunx supabase@2.118.0 stop` and `docker compo
 
 MediaPipe samples up to 120 frames at five-second intervals and reports a rough head orientation, camera-facing proxy, hand visibility, and torso position changes. These estimates depend on framing and lighting; they do not measure eye contact, confidence, or personality. Only aggregate measurements are saved, not landmark coordinates or extracted frames. Earlier completed sessions can use **Measure saved video** to add vision results.
 
+## Privacy and reliability
+
+Each session has a **Video movement analysis** control. Turn it off before analysis to skip frame processing, or turn it off after analysis to remove saved video measurements. The setting is locked while a job is running. Turning it back on allows you to analyze the saved video later. The **Delete this session** control requires an explicit confirmation and removes the private recording and its report data. The app does not set a fixed automatic retention period; delete a session when you no longer want it stored.
+
+The owner-only `PATCH /api/sessions/{id}/privacy` endpoint accepts `{"enabled": true}` or `{"enabled": false}`. Changes made while an analysis job is queued or running return `409`.
+
+Private API responses use `Cache-Control: private, no-store`, and the web app sends `Referrer-Policy: no-referrer`, framing and MIME-sniffing protections, and camera/microphone permission limits. The session page distinguishes an unavailable API from a missing session. Loading and retry views are available for the dashboard and session pages, with keyboard skip navigation and reduced-motion support. Private session actions require an authenticated owner; browser form actions also check the request origin.
+
 ## Use a hosted Supabase project later
 
 Set the following in the ignored root `.env`:
@@ -138,6 +146,6 @@ The backend tests cover tokens, session validation, owner isolation, signed uplo
 
 If you change `POSTGRES_PORT`, update the port in `DATABASE_URL` too. Changing the database password after its volume has been initialized requires updating or recreating that volume.
 
-## Next milestone
+## Project status
 
-Milestone 12 improves loading, errors, responsive behavior, accessibility, security, privacy controls, tests, and documentation.
+All milestones in [project.md](project.md) are implemented. Presentation coaching remains clearly marked as sample guidance until a later real presentation analysis is designed.

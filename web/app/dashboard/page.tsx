@@ -33,7 +33,7 @@ export default async function DashboardPage({
   const { error: pageError } = await searchParams;
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-5xl px-6 py-8 sm:px-10">
+    <main id="main-content" tabIndex={-1} className="mx-auto min-h-screen w-full max-w-5xl px-4 py-8 sm:px-10">
       <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-6">
         <Link href="/" className="text-lg font-semibold text-slate-900">
           English Coach
@@ -94,9 +94,9 @@ export default async function DashboardPage({
             <ul className="mt-6 divide-y divide-slate-200">
               {sessions.map((session) => (
                 <li key={session.id}>
-                  <Link href={`/sessions/${session.id}`} className="flex flex-wrap items-center justify-between gap-3 py-4 hover:text-sky-800">
-                    <span>
-                      <span className="block font-semibold text-slate-900">{session.topic}</span>
+                  <Link href={`/sessions/${session.id}`} className="flex flex-wrap items-center justify-between gap-3 py-4 hover:text-sky-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-800">
+                    <span className="min-w-0">
+                      <span className="block break-words font-semibold text-slate-900">{session.topic}</span>
                       <span className="mt-1 block text-sm text-slate-600">
                         {practiceTypes.find((type) => type.value === session.practice_type)?.label ?? "Practice"}
                         {" · "}

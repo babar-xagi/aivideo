@@ -16,6 +16,7 @@ const practiceSession: PracticeSession = {
   completed_at: null,
   duration_seconds: 12,
   recording_object_key: "private-recording",
+  vision_enabled: true,
 };
 
 const job: AnalysisJob = {
@@ -117,4 +118,10 @@ test("report keeps sample guidance labeled and disables seeking without playback
   expect(screen.getByText("Sample coaching · Transcript is real")).toBeTruthy();
   const timeline = screen.getByRole("group", { name: "Timed recording events" });
   expect(within(timeline).getByRole("button", { name: "Jump to 0:02 — Grammar: I go" }).hasAttribute("disabled")).toBe(true);
+});
+
+test("report does not offer video analysis when the owner disabled it", () => {
+  render(<SessionReport session={{ ...practiceSession, vision_enabled: false }} job={{ ...job, vision_feedback: { ...job.vision_feedback!, status: "unavailable", reason: "disabled_by_user" } }} recordingUrl={null} />);
+  expect(screen.getByText(/Saved video measurements were removed/)).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Measure saved video" })).toBeNull();
 });

@@ -40,3 +40,4 @@ class SessionRead(BaseModel):
     completed_at: datetime | None
     duration_seconds: int | None
     recording_object_key: str | None
+    vision_enabled: bool

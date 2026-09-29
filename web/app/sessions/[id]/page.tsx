@@ -9,6 +9,7 @@ import { Transcript } from "@/features/sessions/transcript";
 import { SpeechMetrics } from "@/features/sessions/speech-metrics";
 import { LanguageFeedback } from "@/features/sessions/language-feedback";
 import { SessionReport } from "@/features/sessions/session-report";
+import { PrivacyControls } from "@/features/sessions/privacy-controls";
 
 export const dynamic = "force-dynamic";
 
@@ -46,11 +47,11 @@ export default async function SessionPage({
   const completedJob = session.status === "completed" && analysisJob?.report ? analysisJob : null;
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-5xl px-6 py-8 sm:px-10">
+    <main id="main-content" tabIndex={-1} className="mx-auto min-h-screen w-full max-w-5xl px-4 py-8 sm:px-10">
       <Link href="/dashboard" className="text-sm font-semibold text-sky-800 hover:underline">← Dashboard</Link>
       <div className="mt-14">
         <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-700">Practice session</p>
-        <h1 className="mt-3 text-4xl font-semibold text-slate-950">{session.topic}</h1>
+        <h1 className="mt-3 break-words text-3xl font-semibold text-slate-950 sm:text-4xl">{session.topic}</h1>
         <p className="mt-4 text-slate-600">{style} · Created {new Date(session.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</p>
       </div>
 
@@ -73,10 +74,13 @@ export default async function SessionPage({
       {pageError === "analysis-failed" && (
         <p role="alert" className="mt-8 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">Analysis could not be started. Please try again.</p>
       )}
+      {pageError === "privacy-failed" && <p role="alert" className="mt-8 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">Privacy setting could not be saved. Wait for any current analysis to finish, then try again.</p>}
+      {pageError === "delete-confirmation" && <p role="alert" className="mt-8 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">Confirm deletion before removing this session.</p>}
       {session.status === "uploaded" && (
         <section aria-labelledby="start-analysis-heading" className="mt-8 rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
           <h2 id="start-analysis-heading" className="text-xl font-semibold text-slate-900">Ready to transcribe</h2>
           <p className="mt-2 text-sm text-slate-600">The worker will transcribe your English speech and measure speaking pace, pauses, and hesitation words. Coaching suggestions are still general examples.</p>
+          <p className="mt-2 text-sm text-slate-600">{session.vision_enabled ? "Video movement analysis is on. You can turn it off in the privacy controls below before starting." : "Video movement analysis is off for this session."}</p>
           <form action={`/sessions/${session.id}/analysis`} method="post" className="mt-6">
             <button type="submit" className="rounded-xl bg-sky-800 px-6 py-3 font-semibold text-white hover:bg-sky-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-800">Transcribe recording</button>
           </form>
@@ -107,9 +111,7 @@ export default async function SessionPage({
         </Link>
       </div>
 
-      <form action={`/sessions/${session.id}/delete`} method="post" className="mt-8">
-        <button type="submit" className="text-sm font-semibold text-rose-700 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-700">Delete this session</button>
-      </form>
+      <PrivacyControls session={session} />
     </main>
   );
 }

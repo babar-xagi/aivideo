@@ -181,6 +181,7 @@ def process_next_job(
             }
             recording_key = practice_session.recording_object_key
             existing_vision = job.vision_feedback
+            vision_enabled = practice_session.vision_enabled
             job.transcript = transcript
             job.updated_at = utc_now()
             db.commit()
@@ -209,13 +210,14 @@ def process_next_job(
                     job.updated_at = utc_now()
                     db.commit()
             if stage == "analyzing_vision":
-                vision = (
-                    existing_vision
-                    if existing_vision and existing_vision.get("status") == "available"
-                    else analyze_vision_safely(recording_key)
-                    if recording_key
-                    else {"status": "unavailable", "reason": "decode_error"}
-                )
+                if not vision_enabled:
+                    vision = {"status": "unavailable", "reason": "disabled_by_user"}
+                elif existing_vision and existing_vision.get("status") == "available":
+                    vision = existing_vision
+                elif recording_key:
+                    vision = analyze_vision_safely(recording_key)
+                else:
+                    vision = {"status": "unavailable", "reason": "decode_error"}
                 with factory() as db:
                     job = db.get(AnalysisJob, job_id)
                     if job is None:

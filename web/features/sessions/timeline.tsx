@@ -59,7 +59,7 @@ export function Timeline({
         <h3 id="timeline-heading" className="font-semibold text-slate-950">Recording timeline</h3>
         <span className="text-xs text-slate-500">{canSeek ? "Select a marker to jump to that moment" : "Markers activate when playback is ready"}</span>
       </div>
-      <div className="relative mx-2 mt-5 h-10" role="group" aria-label="Timed recording events">
+      <div className="relative mx-6 mt-5 h-11" role="group" aria-label="Timed recording events">
         <div className="absolute inset-x-0 top-4 h-2 rounded-full bg-slate-200" aria-hidden="true" />
         <div className="absolute top-2 h-6 w-0.5 bg-slate-950" style={{ left: position(currentTime) }} aria-hidden="true" />
         {events.map((event) => (
@@ -71,8 +71,8 @@ export function Timeline({
             aria-label={`Jump to ${formatTime(event.time)} — ${event.label}`}
             title={`${formatTime(event.time)} · ${event.label}`}
             style={{ left: position(event.time) }}
-            className={`absolute top-2 h-6 w-2 -translate-x-1/2 rounded-full ring-2 ring-white focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${markerStyles[event.kind]}`}
-          />
+            className="absolute top-0 z-10 flex h-11 w-11 -translate-x-1/2 items-center justify-center rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-800 disabled:cursor-not-allowed disabled:opacity-50"
+          ><span className={`h-6 w-2 rounded-full ring-2 ring-white ${markerStyles[event.kind]}`} aria-hidden="true" /></button>
         ))}
       </div>
       <div className="flex justify-between text-xs tabular-nums text-slate-500"><span>0:00</span><span>{formatTime(duration)}</span></div>

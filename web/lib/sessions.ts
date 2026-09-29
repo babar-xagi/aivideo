@@ -22,6 +22,7 @@ export type PracticeSession = {
   completed_at: string | null;
   duration_seconds: number | null;
   recording_object_key: string | null;
+  vision_enabled: boolean;
 };
 
 export type MockReport = {
@@ -102,7 +103,7 @@ export type LanguageFeedback =
 
 export type VisionFeedback = {
   status: "available" | "unavailable";
-  reason: "models_missing" | "runtime_missing" | "decode_error" | "no_person" | null;
+  reason: "models_missing" | "runtime_missing" | "decode_error" | "no_person" | "disabled_by_user" | null;
   sample_interval_seconds: number | null;
   sampled_frames: number;
   face_frames: number;
@@ -174,9 +175,30 @@ export async function getPracticeSession(
       cache: "no-store",
       signal: AbortSignal.timeout(5000),
     });
-    return response.ok ? ((await response.json()) as PracticeSession) : null;
+    if (response.status === 404) return null;
+    if (!response.ok) throw new Error("Session service unavailable");
+    return (await response.json()) as PracticeSession;
   } catch {
-    return null;
+    throw new Error("Session service unavailable");
+  }
+}
+
+export async function updateVisionPreference(
+  token: string,
+  id: string,
+  enabled: boolean,
+): Promise<boolean> {
+  try {
+    const response = await fetch(sessionUrl(`/${encodeURIComponent(id)}/privacy`), {
+      method: "PATCH",
+      headers: { ...authHeaders(token), "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(10000),
+    });
+    return response.ok;
+  } catch {
+    return false;
   }
 }
 
@@ -202,9 +224,11 @@ export async function getAnalysisJob(token: string, id: string): Promise<Analysi
       cache: "no-store",
       signal: AbortSignal.timeout(5000),
     });
-    return response.ok ? ((await response.json()) as AnalysisJob) : null;
+    if (response.status === 404) return null;
+    if (!response.ok) throw new Error("Analysis service unavailable");
+    return (await response.json()) as AnalysisJob;
   } catch {
-    return null;
+    throw new Error("Analysis service unavailable");
   }
 }
 

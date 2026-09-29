@@ -19,7 +19,7 @@ export function AuthForm({ mode, action, error, configured }: AuthFormProps) {
   const signingUp = mode === "sign-up";
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center px-6 py-12">
+    <main id="main-content" tabIndex={-1} className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center px-4 py-12 sm:px-6">
       <Link href="/" className="mb-12 text-sm font-semibold text-sky-800 hover:underline">
         ← English Coach
       </Link>

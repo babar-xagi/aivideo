@@ -118,7 +118,14 @@ LanguageFeedback = Annotated[
 class VisionFeedback(BaseModel):
     status: Literal["available", "unavailable"]
     reason: (
-        Literal["models_missing", "runtime_missing", "decode_error", "no_person"] | None
+        Literal[
+            "models_missing",
+            "runtime_missing",
+            "decode_error",
+            "no_person",
+            "disabled_by_user",
+        ]
+        | None
     ) = None
     sample_interval_seconds: float | None = None
     sampled_frames: int = 0

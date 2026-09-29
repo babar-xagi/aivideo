@@ -1,8 +1,10 @@
+from collections.abc import Awaitable, Callable
 from typing import Literal
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.exc import SQLAlchemyError
+from starlette.responses import Response
 
 from app.api.analysis import router as analysis_router
 from app.api.auth import router as auth_router
@@ -15,6 +17,17 @@ app.include_router(auth_router)
 app.include_router(sessions_router)
 app.include_router(uploads_router)
 app.include_router(analysis_router)
+
+
+@app.middleware("http")
+async def private_api_responses(
+    request: Request, call_next: Callable[[Request], Awaitable[Response]]
+) -> Response:
+    response = await call_next(request)
+    if request.url.path.startswith("/api/sessions") or request.url.path == "/api/me":
+        response.headers["Cache-Control"] = "private, no-store"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
 
 
 class HealthResponse(BaseModel):

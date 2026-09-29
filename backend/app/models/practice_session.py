@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, Index, Integer, String, Uuid
+from sqlalchemy import Boolean, DateTime, Index, Integer, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -37,3 +37,4 @@ class PracticeSession(Base):
     recording_etag: Mapped[str | None] = mapped_column(String(200))
     thumbnail_object_key: Mapped[str | None] = mapped_column(String(512))
     analysis_version: Mapped[str | None] = mapped_column(String(40))
+    vision_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
